@@ -172,10 +172,10 @@
         <div class="header">
             <span class="logo">ZOOP <span style="color:#c22a59">MEGASTORE</span></span>
             <div class="filters">
-                <select id="loja-filter" disabled>
+                <select id="loja-filter">
                     <option>Todos</option>
                 </select>
-                <select id="trimestre-filter" disabled>
+                <select id="trimestre-filter">
                     <option>Todos</option>
                     <option>1º Tri</option>
                     <option>2º Tri</option>
@@ -242,16 +242,44 @@
         return nomes[parseInt(month) - 1] || month;
     }
 
+    function parseData(dataStr) {
+        if (!dataStr) return {};
+        const p = dataStr.split(/[\/-]/);
+        if (p.length < 3) return {};
+        if (p[2].length === 4) { // ??/??/yyyy
+            if (parseInt(p[0]) > 12) {
+                return {dia: parseInt(p[0]), mes: parseInt(p[1]), ano: parseInt(p[2])};
+            } else if (parseInt(p[1]) > 12) {
+                return {dia: parseInt(p[1]), mes: parseInt(p[0]), ano: parseInt(p[2])};
+            }
+            return {dia: parseInt(p[0]), mes: parseInt(p[1]), ano: parseInt(p[2])};
+        }
+        if (p[0].length === 4) { // yyyy-mm-dd
+            return {dia: parseInt(p[2]), mes: parseInt(p[1]), ano: parseInt(p[0])};
+        }
+        return {};
+    }
+
     // Lê múltiplos arquivos CSV e processa os dados
     let vendas = [], clientes = [];
     let chart = null;
 
     // Estado do filtro
     let filtroMes = "Todos";
+    let filtroLoja = "Todos";
+    let filtroTri = "Todos";
 
     // Filtro de mês dinâmico
     document.getElementById("mes-filter").addEventListener("change", function(e) {
         filtroMes = e.target.value;
+        processarDashboard();
+    });
+    document.getElementById("loja-filter").addEventListener("change", function(e) {
+        filtroLoja = e.target.value;
+        processarDashboard();
+    });
+    document.getElementById("trimestre-filter").addEventListener("change", function(e) {
+        filtroTri = e.target.value;
         processarDashboard();
     });
 
@@ -268,20 +296,38 @@
         Promise.all(promessas).then(([v, c]) => {
             vendas = v.filter(x=>x['ID compra']);
             clientes = c.filter(x=>x['ID compra']);
+            const selectLoja = document.getElementById('loja-filter');
+            const lojas = [...new Set(vendas.map(v => v.Unidade).filter(Boolean))].sort();
+            selectLoja.innerHTML = '<option>Todos</option>' + lojas.map(l => `<option>${l}</option>`).join('');
+            selectLoja.disabled = false;
+            document.getElementById('trimestre-filter').disabled = false;
             processarDashboard();
         });
     }
 
     // Função principal do dashboard
     function processarDashboard() {
-        // Aplica filtro de mês
         let vendasFiltradas = vendas;
+
+        if (filtroLoja !== "Todos") {
+            vendasFiltradas = vendasFiltradas.filter(v => v.Unidade === filtroLoja);
+        }
+
+        if (filtroTri !== "Todos") {
+            vendasFiltradas = vendasFiltradas.filter(v => {
+                const {mes} = parseData(v.Data);
+                if (!mes) return false;
+                let tri = Math.floor((mes - 1) / 3) + 1;
+                return `${tri}º Tri` === filtroTri;
+            });
+        }
+
         if (filtroMes !== "Todos") {
-            vendasFiltradas = vendas.filter(v => {
-                let [dia, mes, ano] = (v.Data || '').split(/[\\/-]/);
-                if (!mes || !ano) return false;
+            vendasFiltradas = vendasFiltradas.filter(v => {
+                const {mes} = parseData(v.Data);
+                if (!mes) return false;
                 const nomesMes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-                return nomesMes[parseInt(mes)-1] === filtroMes;
+                return nomesMes[mes-1] === filtroMes;
             });
         }
 
@@ -328,14 +374,10 @@
         // Gráfico de faturamento mensal
         let fatPorMes = {};
         vendasFiltradas.forEach(v => {
-            let [dia, mes, ano] = (v.Data || '').split(/[\\/-]/);
-            if ((ano||'').length === 4 && Number(ano) > 1900) { // d/m/yyyy
-                let mesStr = getMonthShort(mes) + '/' + ano;
-                fatPorMes[mesStr] = (fatPorMes[mesStr] || 0) + Number((v['Preço unitário'] || '').replace(',', '.')) * Number(v.Quantidade || 0);
-            } else if ((dia||'').length === 4 && Number(dia) > 1900) { // yyyy-mm-dd
-                let mesStr = getMonthShort(mes) + '/' + dia;
-                fatPorMes[mesStr] = (fatPorMes[mesStr] || 0) + Number((v['Preço unitário'] || '').replace(',', '.')) * Number(v.Quantidade || 0);
-            }
+            const {mes, ano} = parseData(v.Data);
+            if (!mes || !ano) return;
+            let mesStr = getMonthShort(mes) + '/' + ano;
+            fatPorMes[mesStr] = (fatPorMes[mesStr] || 0) + Number((v['Preço unitário'] || '').replace(',', '.')) * Number(v.Quantidade || 0);
         });
         let fatMesLabels = Object.keys(fatPorMes).sort((a,b) => {
             let [ma, ya] = a.split('/');
