@@ -139,6 +139,7 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -147,8 +148,6 @@
             <div class="filters">
                 <select id="loja-filter">
                     <option>Todos</option>
-                    <option>Loja 1</option>
-                    <option>Loja 2</option>
                 </select>
                 <select id="trimestre-filter">
                     <option>Todos</option>
@@ -177,84 +176,140 @@
         <div class="kpis">
             <div class="kpi">
                 <span class="title">Total de vendas</span>
-                <span class="value" id="kpi-vendas">6169</span>
+                <span class="value" id="kpi-vendas">...</span>
             </div>
             <div class="kpi">
                 <span class="title">Itens vendidos</span>
-                <span class="value" id="kpi-itens">18.537</span>
+                <span class="value" id="kpi-itens">...</span>
             </div>
             <div class="kpi">
                 <span class="title">Faturamento total</span>
-                <span class="value" id="kpi-faturamento">R$ 16,24 Mi</span>
+                <span class="value" id="kpi-faturamento">...</span>
             </div>
             <div class="kpi">
                 <span class="title">NPS</span>
-                <span class="value" id="kpi-nps">79,17%</span>
-                <div class="nps-detail">
-                    <span style="color:#c22a59;font-weight:700;">Promotores:</span> 5.405 (87,6%)<br>
-                    <span style="color:#f37b2f;font-weight:700;">Neutros:</span> 243 (3,9%)<br>
-                    <span style="color:#5561ff;font-weight:700;">Detratores:</span> 521 (8,4%)
-                </div>
+                <span class="value" id="kpi-nps">...</span>
+                <div class="nps-detail" id="nps-detail"></div>
             </div>
         </div>
         <div class="dashboard-rows">
             <div class="card" style="flex:2;">
-                <h3>Faturamento ao longo do tempo <span style="font-size:0.95em; color:#c22a59;" id="peak-label">(maior pico: dez/2022)</span></h3>
+                <h3>Faturamento ao longo do tempo <span style="font-size:0.95em; color:#c22a59;" id="peak-label"></span></h3>
                 <canvas id="chart-faturamento" height="105"></canvas>
             </div>
             <div class="card" style="flex:1;">
                 <h3>Faturamento por categoria</h3>
                 <ul class="category-list" id="categoria-list">
-                    <li><span class="cat-label">Eletrônicos</span><span class="cat-value">R$ 14.898.779</span></li>
-                    <li><span class="cat-label">Beleza e cuidados pessoais</span><span class="cat-value">R$ 423.263</span></li>
-                    <li><span class="cat-label">Casa e limpeza</span><span class="cat-value">R$ 316.689</span></li>
-                    <li><span class="cat-label">Ferramentas e construção</span><span class="cat-value">R$ 252.953</span></li>
-                    <li><span class="cat-label">Alimentos e bebidas</span><span class="cat-value">R$ 231.284</span></li>
-                    <li><span class="cat-label">Livros</span><span class="cat-value">R$ 75.265</span></li>
-                    <li><span class="cat-label">Papelaria e escritório</span><span class="cat-value">R$ 45.222</span></li>
+                    <li>Carregando...</li>
                 </ul>
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Dados do gráfico
-        const labels = [
-            'jan/2022', 'fev/2022', 'mar/2022', 'abr/2022', 'mai/2022', 'jun/2022',
-            'jul/2022', 'ago/2022', 'set/2022', 'out/2022', 'nov/2022', 'dez/2022'
-        ];
-        const values = [
-            992689.8, 712452.1, 993941.5, 642104.7, 1611173.3, 1431766.0,
-            1106396.7, 1763222.1, 1179103.3, 1484183.6, 2050254.6, 2276166.3
-        ];
-        // Ponto do maior valor
-        const maxIndex = values.indexOf(Math.max(...values));
-        const peakLabel = labels[maxIndex];
-        const peakValue = values[maxIndex];
-        document.getElementById("peak-label").innerText = `(maior pico: ${peakLabel} | R$ ${peakValue.toLocaleString('pt-BR', {minimumFractionDigits: 0})})`;
+    // Utilidades para mês em português
+    function getMonthName(month) {
+        const nomes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+        return nomes[parseInt(month) - 1] || month;
+    }
 
-        // Gráfico
-        const ctx = document.getElementById('chart-faturamento').getContext('2d');
-        new Chart(ctx, {
+    // Lê múltiplos arquivos CSV e processa os dados
+    let vendas = [], clientes = [];
+    let categorias = [];
+    let chart = null;
+
+    function formatReal(n) {
+        return 'R$ ' + (+n).toLocaleString('pt-BR', {minimumFractionDigits: 0});
+    }
+
+    // Função para carregar e processar tudo
+    function processarDashboard() {
+        // KPIs
+        document.getElementById('kpi-vendas').textContent = vendas.length;
+
+        // Itens vendidos
+        let itens = vendas.reduce((acc, v) => acc + Number(v.Quantidade || 0), 0);
+        document.getElementById('kpi-itens').textContent = itens.toLocaleString('pt-BR');
+
+        // Faturamento total
+        let faturamento = vendas.reduce((acc, v) => {
+            let preco = Number((v['Preço unitário'] || '').replace(',', '.'));
+            let qtd = Number(v.Quantidade || 0);
+            return acc + preco * qtd;
+        }, 0);
+        document.getElementById('kpi-faturamento').textContent = formatReal(faturamento);
+
+        // NPS detalhado
+        let avaliacoes = clientes.map(c => Number(c['Avaliação da compra'])).filter(n => !isNaN(n));
+        let promotores = avaliacoes.filter(a => a >= 9).length;
+        let neutros = avaliacoes.filter(a => a >= 7 && a <= 8).length;
+        let detratores = avaliacoes.filter(a => a <= 6).length;
+        let totalNPS = avaliacoes.length;
+        let nps = ((promotores / totalNPS) - (detratores / totalNPS)) * 100;
+        document.getElementById('kpi-nps').textContent = nps.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
+        document.getElementById('nps-detail').innerHTML = 
+            `<span style=\"color:#c22a59;font-weight:700;\">Promotores:</span> ${promotores} (${((promotores/totalNPS)*100).toFixed(1)}%)<br>
+            <span style=\"color:#f37b2f;font-weight:700;\">Neutros:</span> ${neutros} (${((neutros/totalNPS)*100).toFixed(1)}%)<br>
+            <span style=\"color:#5561ff;font-weight:700;\">Detratores:</span> ${detratores} (${((detratores/totalNPS)*100).toFixed(1)}%)`;
+
+        // Faturamento por categoria
+        let fatPorCat = {};
+        vendas.forEach(v => {
+            let cat = v['Categoria do produto'] || 'Indefinido';
+            let preco = Number((v['Preço unitário'] || '').replace(',', '.'));
+            let qtd = Number(v.Quantidade || 0);
+            fatPorCat[cat] = (fatPorCat[cat] || 0) + preco * qtd;
+        });
+
+        // Ordena por maior faturamento
+        let fatCatArr = Object.entries(fatPorCat).sort((a, b) => b[1] - a[1]);
+        let ulCat = document.getElementById('categoria-list');
+        ulCat.innerHTML = fatCatArr.map(cat =>
+            `<li><span class="cat-label">${cat[0]}</span><span class="cat-value">${formatReal(cat[1])}</span></li>`
+        ).join('');
+
+        // Gráfico de faturamento mensal
+        let fatPorMes = {};
+        vendas.forEach(v => {
+            let [dia, mes, ano] = (v.Data || '').split(/[\\/-]/);
+            // Ajuste para datas no formato d/m/yyyy ou yyyy-mm-dd
+            if ((ano||'').length === 4 && Number(ano) > 1900) { // formato d/m/yyyy
+                let mesStr = getMonthName(mes) + '/' + ano;
+                fatPorMes[mesStr] = (fatPorMes[mesStr] || 0) + Number((v['Preço unitário'] || '').replace(',', '.')) * Number(v.Quantidade || 0);
+            } else if ((dia||'').length === 4 && Number(dia) > 1900) { // formato yyyy-mm-dd
+                let mesStr = getMonthName(mes) + '/' + dia;
+                fatPorMes[mesStr] = (fatPorMes[mesStr] || 0) + Number((v['Preço unitário'] || '').replace(',', '.')) * Number(v.Quantidade || 0);
+            }
+        });
+        let fatMesLabels = Object.keys(fatPorMes).sort((a,b) => {
+            let [ma, ya] = a.split('/');
+            let [mb, yb] = b.split('/');
+            return ya === yb ? (["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"].indexOf(ma) - ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"].indexOf(mb)) : ya - yb;
+        });
+        let fatMesValues = fatMesLabels.map(m => fatPorMes[m]);
+
+        // Pico
+        let maxFat = Math.max(...fatMesValues);
+        let maxIndex = fatMesValues.indexOf(maxFat);
+        let peakLabel = fatMesLabels[maxIndex];
+        document.getElementById('peak-label').innerText = `(maior pico: ${peakLabel} | ${formatReal(maxFat)})`;
+
+        // Monta gráfico
+        if (chart) chart.destroy();
+        let ctx = document.getElementById('chart-faturamento').getContext('2d');
+        chart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
+                labels: fatMesLabels,
                 datasets: [{
                     label: 'Faturamento',
-                    data: values,
+                    data: fatMesValues,
                     borderColor: '#4b65c1',
                     backgroundColor: 'rgba(76, 120, 230, 0.11)',
                     fill: true,
                     pointRadius: 4,
-                    pointBackgroundColor: function(ctx) {
-                        return ctx.dataIndex === maxIndex ? '#c22a59' : '#4b65c1';
-                    },
-                    pointBorderColor: function(ctx) {
-                        return ctx.dataIndex === maxIndex ? '#c22a59' : '#4b65c1';
-                    },
-                    pointStyle: function(ctx) {
-                        return ctx.dataIndex === maxIndex ? 'rectRounded' : 'circle';
-                    },
+                    pointBackgroundColor: (ctx) => ctx.dataIndex === maxIndex ? '#c22a59' : '#4b65c1',
+                    pointBorderColor: (ctx) => ctx.dataIndex === maxIndex ? '#c22a59' : '#4b65c1',
+                    pointStyle: (ctx) => ctx.dataIndex === maxIndex ? 'rectRounded' : 'circle',
                     tension: 0.21
                 }]
             },
@@ -263,7 +318,7 @@
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: (ctx) => ` R$ ${ctx.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 0})}`
+                            label: (ctx) => ` ${formatReal(ctx.parsed.y)}`
                         }
                     },
                 },
@@ -272,7 +327,7 @@
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 0});
+                                return formatReal(value);
                             }
                         },
                         grid: { color: '#e8ecf7' }
@@ -286,6 +341,22 @@
                 }
             }
         });
+    }
+
+    // Função para carregar todos os CSVs
+    function carregarCSVs() {
+        let promessas = [
+            new Promise(resolve => Papa.parse('Base/Vendas.csv', {download:true,header:true,complete:r=>resolve(r.data)})),
+            new Promise(resolve => Papa.parse('Base/Clientes.csv', {download:true,header:true,complete:r=>resolve(r.data)})),
+        ];
+        Promise.all(promessas).then(([v, c]) => {
+            vendas = v.filter(x=>x['ID compra']); // remove linhas vazias
+            clientes = c.filter(x=>x['ID compra']);
+            processarDashboard();
+        });
+    }
+
+    carregarCSVs();
     </script>
 </body>
 </html>
