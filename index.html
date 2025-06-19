@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Vendas | Zoop Megastore</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Montserrat', Arial, sans-serif;
+            background: #f7f9fb;
+            color: #243051;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 36px auto 0 auto;
+            padding: 32px 32px 32px 32px;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 32px #e8ecf7aa;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .logo {
+            font-size: 2.3rem;
+            font-weight: 700;
+            color: #243051;
+            letter-spacing: 2px;
+        }
+        .filters {
+            display: flex;
+            gap: 18px;
+        }
+        .filters select {
+            padding: 6px 16px;
+            border-radius: 8px;
+            border: 1px solid #d8dee9;
+            font-size: 1rem;
+            background: #fff;
+        }
+        .kpis {
+            margin: 28px 0 36px 0;
+            display: flex;
+            gap: 28px;
+        }
+        .kpi {
+            background: #f7f9fb;
+            border-radius: 18px;
+            box-shadow: 0 2px 12px #e8ecf777;
+            padding: 24px 36px;
+            min-width: 170px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .kpi .title {
+            color: #9ca3af;
+            font-size: 1.1rem;
+            margin-bottom: 7px;
+        }
+        .kpi .value {
+            color: #c22a59;
+            font-size: 2.2rem;
+            font-weight: 700;
+        }
+        .kpi .nps-detail {
+            margin-top: 7px;
+            font-size: 0.98rem;
+            color: #334155;
+            text-align: left;
+        }
+        .dashboard-rows {
+            display: flex;
+            gap: 32px;
+            margin-top: 20px;
+        }
+        .dashboard-rows .card {
+            background: #f7f9fb;
+            border-radius: 18px;
+            box-shadow: 0 2px 12px #e8ecf777;
+            padding: 24px 36px 36px 36px;
+            flex: 1;
+        }
+        .dashboard-rows .card h3 {
+            margin: 0 0 20px 0;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #243051;
+        }
+        .category-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .category-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0 12px 0;
+            font-size: 1.07rem;
+            font-weight: 500;
+            border-bottom: 1px solid #ececec;
+        }
+        .category-list li:last-child {
+            border-bottom: none;
+        }
+        .cat-label {
+            color: #243051;
+            font-weight: 600;
+        }
+        .cat-value {
+            color: #c22a59;
+            font-weight: 700;
+            letter-spacing: 1px;
+            font-size: 1.10rem;
+        }
+        @media (max-width: 1100px) {
+            .container {
+                padding: 18px 6px 28px 6px;
+            }
+            .dashboard-rows {
+                flex-direction: column;
+                gap: 18px;
+            }
+        }
+        @media (max-width: 600px) {
+            .kpis {
+                flex-direction: column;
+                gap: 18px;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span class="logo">ZOOP <span style="color:#c22a59">MEGASTORE</span></span>
+            <div class="filters">
+                <select id="loja-filter">
+                    <option>Todos</option>
+                    <option>Loja 1</option>
+                    <option>Loja 2</option>
+                </select>
+                <select id="trimestre-filter">
+                    <option>Todos</option>
+                    <option>1º Tri</option>
+                    <option>2º Tri</option>
+                    <option>3º Tri</option>
+                    <option>4º Tri</option>
+                </select>
+                <select id="mes-filter">
+                    <option>Todos</option>
+                    <option>Janeiro</option>
+                    <option>Fevereiro</option>
+                    <option>Março</option>
+                    <option>Abril</option>
+                    <option>Maio</option>
+                    <option>Junho</option>
+                    <option>Julho</option>
+                    <option>Agosto</option>
+                    <option>Setembro</option>
+                    <option>Outubro</option>
+                    <option>Novembro</option>
+                    <option>Dezembro</option>
+                </select>
+            </div>
+        </div>
+        <div class="kpis">
+            <div class="kpi">
+                <span class="title">Total de vendas</span>
+                <span class="value" id="kpi-vendas">6169</span>
+            </div>
+            <div class="kpi">
+                <span class="title">Itens vendidos</span>
+                <span class="value" id="kpi-itens">18.537</span>
+            </div>
+            <div class="kpi">
+                <span class="title">Faturamento total</span>
+                <span class="value" id="kpi-faturamento">R$ 16,24 Mi</span>
+            </div>
+            <div class="kpi">
+                <span class="title">NPS</span>
+                <span class="value" id="kpi-nps">79,17%</span>
+                <div class="nps-detail">
+                    <span style="color:#c22a59;font-weight:700;">Promotores:</span> 5.405 (87,6%)<br>
+                    <span style="color:#f37b2f;font-weight:700;">Neutros:</span> 243 (3,9%)<br>
+                    <span style="color:#5561ff;font-weight:700;">Detratores:</span> 521 (8,4%)
+                </div>
+            </div>
+        </div>
+        <div class="dashboard-rows">
+            <div class="card" style="flex:2;">
+                <h3>Faturamento ao longo do tempo <span style="font-size:0.95em; color:#c22a59;" id="peak-label">(maior pico: dez/2022)</span></h3>
+                <canvas id="chart-faturamento" height="105"></canvas>
+            </div>
+            <div class="card" style="flex:1;">
+                <h3>Faturamento por categoria</h3>
+                <ul class="category-list" id="categoria-list">
+                    <li><span class="cat-label">Eletrônicos</span><span class="cat-value">R$ 14.898.779</span></li>
+                    <li><span class="cat-label">Beleza e cuidados pessoais</span><span class="cat-value">R$ 423.263</span></li>
+                    <li><span class="cat-label">Casa e limpeza</span><span class="cat-value">R$ 316.689</span></li>
+                    <li><span class="cat-label">Ferramentas e construção</span><span class="cat-value">R$ 252.953</span></li>
+                    <li><span class="cat-label">Alimentos e bebidas</span><span class="cat-value">R$ 231.284</span></li>
+                    <li><span class="cat-label">Livros</span><span class="cat-value">R$ 75.265</span></li>
+                    <li><span class="cat-label">Papelaria e escritório</span><span class="cat-value">R$ 45.222</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Dados do gráfico
+        const labels = [
+            'jan/2022', 'fev/2022', 'mar/2022', 'abr/2022', 'mai/2022', 'jun/2022',
+            'jul/2022', 'ago/2022', 'set/2022', 'out/2022', 'nov/2022', 'dez/2022'
+        ];
+        const values = [
+            992689.8, 712452.1, 993941.5, 642104.7, 1611173.3, 1431766.0,
+            1106396.7, 1763222.1, 1179103.3, 1484183.6, 2050254.6, 2276166.3
+        ];
+        // Ponto do maior valor
+        const maxIndex = values.indexOf(Math.max(...values));
+        const peakLabel = labels[maxIndex];
+        const peakValue = values[maxIndex];
+        document.getElementById("peak-label").innerText = `(maior pico: ${peakLabel} | R$ ${peakValue.toLocaleString('pt-BR', {minimumFractionDigits: 0})})`;
+
+        // Gráfico
+        const ctx = document.getElementById('chart-faturamento').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Faturamento',
+                    data: values,
+                    borderColor: '#4b65c1',
+                    backgroundColor: 'rgba(76, 120, 230, 0.11)',
+                    fill: true,
+                    pointRadius: 4,
+                    pointBackgroundColor: function(ctx) {
+                        return ctx.dataIndex === maxIndex ? '#c22a59' : '#4b65c1';
+                    },
+                    pointBorderColor: function(ctx) {
+                        return ctx.dataIndex === maxIndex ? '#c22a59' : '#4b65c1';
+                    },
+                    pointStyle: function(ctx) {
+                        return ctx.dataIndex === maxIndex ? 'rectRounded' : 'circle';
+                    },
+                    tension: 0.21
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => ` R$ ${ctx.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 0})}`
+                        }
+                    },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 0});
+                            }
+                        },
+                        grid: { color: '#e8ecf7' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                elements: {
+                    line: { borderWidth: 3 }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
