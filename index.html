@@ -23,9 +23,11 @@
         }
         .header {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 24px;
+            gap: 12px;
         }
         .logo {
             font-size: 2.3rem;
@@ -35,19 +37,24 @@
         }
         .filters {
             display: flex;
-            gap: 18px;
+            flex-wrap: wrap;
+            gap: 14px;
         }
         .filters select {
-            padding: 6px 16px;
+            padding: 6px 12px;
             border-radius: 8px;
             border: 1px solid #d8dee9;
             font-size: 1rem;
             background: #fff;
+            min-width: 130px;
+            max-width: 190px;
+            box-sizing: border-box;
         }
         .kpis {
             margin: 28px 0 36px 0;
             display: flex;
             gap: 28px;
+            flex-wrap: wrap;
         }
         .kpi {
             background: #f7f9fb;
@@ -131,10 +138,29 @@
                 gap: 18px;
             }
         }
-        @media (max-width: 600px) {
+        @media (max-width: 750px) {
+            .header, .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filters {
+                gap: 10px;
+            }
+            .logo {
+                font-size: 1.6rem;
+                text-align: center;
+            }
             .kpis {
                 flex-direction: column;
                 gap: 18px;
+            }
+        }
+        @media (max-width: 450px) {
+            .container {
+                padding: 5px 2px 15px 2px;
+            }
+            .dashboard-rows .card {
+                padding: 16px 7px 18px 7px;
             }
         }
     </style>
@@ -146,10 +172,10 @@
         <div class="header">
             <span class="logo">ZOOP <span style="color:#c22a59">MEGASTORE</span></span>
             <div class="filters">
-                <select id="loja-filter">
+                <select id="loja-filter" disabled>
                     <option>Todos</option>
                 </select>
-                <select id="trimestre-filter">
+                <select id="trimestre-filter" disabled>
                     <option>Todos</option>
                     <option>1º Tri</option>
                     <option>2º Tri</option>
@@ -208,30 +234,63 @@
     <script>
     // Utilidades para mês em português
     function getMonthName(month) {
+        const nomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        return nomes[parseInt(month) - 1] || month;
+    }
+    function getMonthShort(month) {
         const nomes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
         return nomes[parseInt(month) - 1] || month;
     }
 
     // Lê múltiplos arquivos CSV e processa os dados
     let vendas = [], clientes = [];
-    let categorias = [];
     let chart = null;
+
+    // Estado do filtro
+    let filtroMes = "Todos";
+
+    // Filtro de mês dinâmico
+    document.getElementById("mes-filter").addEventListener("change", function(e) {
+        filtroMes = e.target.value;
+        processarDashboard();
+    });
 
     function formatReal(n) {
         return 'R$ ' + (+n).toLocaleString('pt-BR', {minimumFractionDigits: 0});
     }
 
-    // Função para carregar e processar tudo
-    function processarDashboard() {
-        // KPIs
-        document.getElementById('kpi-vendas').textContent = vendas.length;
+    // Função para carregar todos os CSVs
+    function carregarCSVs() {
+        let promessas = [
+            new Promise(resolve => Papa.parse('Base/Vendas.csv', {download:true,header:true,complete:r=>resolve(r.data)})),
+            new Promise(resolve => Papa.parse('Base/Clientes.csv', {download:true,header:true,complete:r=>resolve(r.data)})),
+        ];
+        Promise.all(promessas).then(([v, c]) => {
+            vendas = v.filter(x=>x['ID compra']);
+            clientes = c.filter(x=>x['ID compra']);
+            processarDashboard();
+        });
+    }
 
-        // Itens vendidos
-        let itens = vendas.reduce((acc, v) => acc + Number(v.Quantidade || 0), 0);
+    // Função principal do dashboard
+    function processarDashboard() {
+        // Aplica filtro de mês
+        let vendasFiltradas = vendas;
+        if (filtroMes !== "Todos") {
+            vendasFiltradas = vendas.filter(v => {
+                let [dia, mes, ano] = (v.Data || '').split(/[\\/-]/);
+                if (!mes || !ano) return false;
+                const nomesMes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+                return nomesMes[parseInt(mes)-1] === filtroMes;
+            });
+        }
+
+        document.getElementById('kpi-vendas').textContent = vendasFiltradas.length;
+
+        let itens = vendasFiltradas.reduce((acc, v) => acc + Number(v.Quantidade || 0), 0);
         document.getElementById('kpi-itens').textContent = itens.toLocaleString('pt-BR');
 
-        // Faturamento total
-        let faturamento = vendas.reduce((acc, v) => {
+        let faturamento = vendasFiltradas.reduce((acc, v) => {
             let preco = Number((v['Preço unitário'] || '').replace(',', '.'));
             let qtd = Number(v.Quantidade || 0);
             return acc + preco * qtd;
@@ -253,13 +312,12 @@
 
         // Faturamento por categoria
         let fatPorCat = {};
-        vendas.forEach(v => {
+        vendasFiltradas.forEach(v => {
             let cat = v['Categoria do produto'] || 'Indefinido';
             let preco = Number((v['Preço unitário'] || '').replace(',', '.'));
             let qtd = Number(v.Quantidade || 0);
             fatPorCat[cat] = (fatPorCat[cat] || 0) + preco * qtd;
         });
-
         // Ordena por maior faturamento
         let fatCatArr = Object.entries(fatPorCat).sort((a, b) => b[1] - a[1]);
         let ulCat = document.getElementById('categoria-list');
@@ -269,14 +327,13 @@
 
         // Gráfico de faturamento mensal
         let fatPorMes = {};
-        vendas.forEach(v => {
+        vendasFiltradas.forEach(v => {
             let [dia, mes, ano] = (v.Data || '').split(/[\\/-]/);
-            // Ajuste para datas no formato d/m/yyyy ou yyyy-mm-dd
-            if ((ano||'').length === 4 && Number(ano) > 1900) { // formato d/m/yyyy
-                let mesStr = getMonthName(mes) + '/' + ano;
+            if ((ano||'').length === 4 && Number(ano) > 1900) { // d/m/yyyy
+                let mesStr = getMonthShort(mes) + '/' + ano;
                 fatPorMes[mesStr] = (fatPorMes[mesStr] || 0) + Number((v['Preço unitário'] || '').replace(',', '.')) * Number(v.Quantidade || 0);
-            } else if ((dia||'').length === 4 && Number(dia) > 1900) { // formato yyyy-mm-dd
-                let mesStr = getMonthName(mes) + '/' + dia;
+            } else if ((dia||'').length === 4 && Number(dia) > 1900) { // yyyy-mm-dd
+                let mesStr = getMonthShort(mes) + '/' + dia;
                 fatPorMes[mesStr] = (fatPorMes[mesStr] || 0) + Number((v['Preço unitário'] || '').replace(',', '.')) * Number(v.Quantidade || 0);
             }
         });
@@ -291,7 +348,7 @@
         let maxFat = Math.max(...fatMesValues);
         let maxIndex = fatMesValues.indexOf(maxFat);
         let peakLabel = fatMesLabels[maxIndex];
-        document.getElementById('peak-label').innerText = `(maior pico: ${peakLabel} | ${formatReal(maxFat)})`;
+        document.getElementById('peak-label').innerText = `(maior pico: ${peakLabel || ''} | ${maxFat>0?formatReal(maxFat):''})`;
 
         // Monta gráfico
         if (chart) chart.destroy();
@@ -343,19 +400,7 @@
         });
     }
 
-    // Função para carregar todos os CSVs
-    function carregarCSVs() {
-        let promessas = [
-            new Promise(resolve => Papa.parse('Base/Vendas.csv', {download:true,header:true,complete:r=>resolve(r.data)})),
-            new Promise(resolve => Papa.parse('Base/Clientes.csv', {download:true,header:true,complete:r=>resolve(r.data)})),
-        ];
-        Promise.all(promessas).then(([v, c]) => {
-            vendas = v.filter(x=>x['ID compra']); // remove linhas vazias
-            clientes = c.filter(x=>x['ID compra']);
-            processarDashboard();
-        });
-    }
-
+    // Inicializa carregando CSVs
     carregarCSVs();
     </script>
 </body>
