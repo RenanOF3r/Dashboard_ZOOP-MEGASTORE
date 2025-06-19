@@ -284,7 +284,10 @@
     });
 
     function formatReal(n) {
-        return 'R$ ' + (+n).toLocaleString('pt-BR', {minimumFractionDigits: 0});
+        return 'R$ ' + (+n).toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
     }
 
     // Função para carregar todos os CSVs
@@ -331,7 +334,8 @@
             });
         }
 
-        document.getElementById('kpi-vendas').textContent = vendasFiltradas.length;
+        document.getElementById('kpi-vendas').textContent =
+            vendasFiltradas.length.toLocaleString('pt-BR');
 
         let itens = vendasFiltradas.reduce((acc, v) => acc + Number(v.Quantidade || 0), 0);
         document.getElementById('kpi-itens').textContent = itens.toLocaleString('pt-BR');
