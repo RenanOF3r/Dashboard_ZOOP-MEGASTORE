@@ -284,11 +284,18 @@
     });
 
     function formatReal(n) {
-        return 'R$ ' + (+n).toLocaleString('pt-BR', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
+        let num = +n;
+        let suf = "";
+        if (num >= 1000000) {
+            num /= 1000000;
+            suf = " M";
+        } else if (num >= 1000) {
+            num /= 1000;
+            suf = " mil";
+        }
+        return "R$ " + num.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2}) + suf;
     }
+    
 
     // Função para carregar todos os CSVs
     function carregarCSVs() {
@@ -356,9 +363,9 @@
         let nps = ((promotores / totalNPS) - (detratores / totalNPS)) * 100;
         document.getElementById('kpi-nps').textContent = nps.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
         document.getElementById('nps-detail').innerHTML = 
-            `<span style=\"color:#c22a59;font-weight:700;\">Promotores:</span> ${promotores} (${((promotores/totalNPS)*100).toFixed(1)}%)<br>
-            <span style=\"color:#f37b2f;font-weight:700;\">Neutros:</span> ${neutros} (${((neutros/totalNPS)*100).toFixed(1)}%)<br>
-            <span style=\"color:#5561ff;font-weight:700;\">Detratores:</span> ${detratores} (${((detratores/totalNPS)*100).toFixed(1)}%)`;
+            `<span style=\"color:#c22a59;font-weight:700;\">Promotores:</span> ${promotores} (${((promotores/totalNPS)*100).toFixed(2)}%)<br>
+            <span style=\"color:#f37b2f;font-weight:700;\">Neutros:</span> ${neutros} (${((neutros/totalNPS)*100).toFixed(2)}%)<br>
+            <span style=\"color:#5561ff;font-weight:700;\">Detratores:</span> ${detratores} (${((detratores/totalNPS)*100).toFixed(2)}%)`;
 
         // Faturamento por categoria
         let fatPorCat = {};
