@@ -284,11 +284,18 @@
     });
 
     function formatReal(n) {
-        return 'R$ ' + (+n).toLocaleString('pt-BR', {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1
-        });
+        let num = +n;
+        let suf = "";
+        if (num >= 1000000) {
+            num /= 1000000;
+            suf = " M";
+        } else if (num >= 1000) {
+            num /= 1000;
+            suf = " mil";
+        }
+        return "R$ " + num.toLocaleString("pt-BR", {minimumFractionDigits:5, maximumFractionDigits:5}) + suf;
     }
+    
 
     // Função para carregar todos os CSVs
     function carregarCSVs() {
