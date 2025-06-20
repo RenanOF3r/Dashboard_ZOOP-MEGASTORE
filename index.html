@@ -132,6 +132,17 @@
             font-weight: 700;
             letter-spacing: 1px;
             font-size: 1.10rem;
+            text-align: right;
+            display: inline-block;
+            width: 120px;
+            position: relative;
+            font-variant-numeric: tabular-nums;
+        }
+        .cat-value::before {
+            content: "R$";
+            position: absolute;
+            right: 100%;
+            padding-right: 4px;
         }
         @media (max-width: 1100px) {
             .container {
@@ -308,7 +319,7 @@
         processarDashboard();
     });
 
-    function formatReal(n) {
+function formatReal(n) {
         let num = +n;
         let suf = "";
         if (num >= 1000000) {
@@ -319,8 +330,22 @@
             suf = " mil";
         }
 
-        return "R$ " + num.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2}) + suf;
+    return "R$ " + num.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2}) + suf;
+}
+
+// Como formatReal mas sem o prefixo de moeda
+function formatRealNum(n) {
+    let num = +n;
+    let suf = "";
+    if (num >= 1000000) {
+        num /= 1000000;
+        suf = " M";
+    } else if (num >= 1000) {
+        num /= 1000;
+        suf = " mil";
     }
+    return num.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2}) + suf;
+}
     
 
     // Função para carregar todos os CSVs
@@ -405,7 +430,7 @@
         let fatCatArr = Object.entries(fatPorCat).sort((a, b) => b[1] - a[1]);
         let ulCat = document.getElementById('categoria-list');
         ulCat.innerHTML = fatCatArr.map(cat =>
-            `<li><span class="cat-label">${cat[0]}</span><span class="cat-value">${formatReal(cat[1])}</span></li>`
+            `<li><span class="cat-label">${cat[0]}</span><span class="cat-value">${formatRealNum(cat[1])}</span></li>`
         ).join('');
 
         // Gráfico de faturamento mensal
